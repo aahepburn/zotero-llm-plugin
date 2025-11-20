@@ -1,29 +1,65 @@
 import fitz
 
-def extract_text(pdf_path, max_chars=2000):
-    """
-    Extracts up to `max_chars` characters from a PDF.
+class PDF:
+    def __init__(self, filepath):
+        self.filepath = filepath
+        self.doc = None
 
-    Args:
-        pdf_path (str): Path to the PDF file.
-        max_chars (int): Max number of characters to return.
+    def open(self):
+        self.doc = fitz.open(self.filepath)
 
-    Returns:
-        str: Extracted text (plain string).
-        
-    Raises:
-        FileNotFoundError: If file is missing.
-        RuntimeError: If PDF cannot be parsed.
-    """
+    def extract_text(self, max_chars=2000):
+        self.doc = fitz.open(self.filepath)
+        text = ""
 
-    doc = fitz.open(pdf_path)
+        for page in self.doc:
+            text += page.get_text()
+            if len(text) >= max_chars:
+                break
+        self.doc.close()
+
+        text = text.replace('\n', "")
+        text = text.replace('\t', "")
+
+        return text[:max_chars]
     
-    text = ""
+    def num_pages(self):
+        self.doc = fitz.open(self.filepath)
+        count = len(self.doc)
+        self.doc.close()
+        return count
 
-    for page in doc:
-        text += page.get_text()
-        if len(text) >= max_chars:
-            break
-    doc.close()
+    def extract_text_by_page(self, page_number):
+        self.doc = fitz.open(self.filepath)
+        text = self.doc[page_number].get_text()
+        self.doc.close()
+        return text
+    
+    def get_metadata(self):
+        self.doc = fitz.open(self.filepath)
+        metadata = self.doc.metadata
+        self.doc.close()
+        return metadata  # return a dict
+    
+    def extract_all_text(self):
+        """Retrieves all the text of the PDF by page. stored by page too."""
+        self.doc = fitz.open(self.filepath)
+        text_chunks = [page.get_text() for page in self.doc]
+        self.doc.close()
+        return text_chunks  # list of strings, one per page
+    
+    def get_annotations(self):
+        self.doc = fitz.open(self.filepath)
+        annots = []
+        for page in self.doc:
+            for annot in page.annots():
+                annots.append(annot.info)
+        self.doc.close()
+        return annots  # list of annotation dicts
 
-    return text[:max_chars]
+
+
+
+
+
+

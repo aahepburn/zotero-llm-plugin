@@ -1,6 +1,8 @@
+# uvicorn backend.main:app --reload
+
 from fastapi import FastAPI, Query
 from typing import Optional
-from backend.pdf_utils import extract_text
+from backend.pdf import extract_text
 
 # If you add semantic search (optional for now):
 from backend.index_utils import collection, get_embedding
