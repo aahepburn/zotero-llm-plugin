@@ -2,7 +2,7 @@ import requests
 from semanticscholar import SemanticScholar
 import os
 from dotenv import load_dotenv, dotenv_values
-load_dotenv()
+
 
 google_api_key = os.getenv("GOOGLE_API")
 

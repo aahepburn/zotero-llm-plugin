@@ -61,34 +61,46 @@
 <body>
     <div class="container">
         <h1>Zotero LLM Prototype</h1>
-        <form id="pdfForm">
-            <label for="filename">PDF Filename (relative to backend):</label>
-            <input type="text" id="filename" value="backend/sample_pdfs/test_article.pdf" required />
+        <form id="searchForm">
+            <label for="authors">Authors (comma separated):</label>
+            <input type="text" id="authors" placeholder="e.g. Groth, Li" />
 
-            <label for="max_chars">Max Chars:</label>
-            <input type="number" id="max_chars" value="1000" min="10" max="10000" />
+            <label for="titles">Titles (comma separated):</label>
+            <input type="text" id="titles" placeholder="e.g. How different is different?" />
 
-            <button type="submit">Extract PDF Text</button>
+            <label for="dates">Dates (comma separated):</label>
+            <input type="text" id="dates" placeholder="e.g. 2025, 2023-04-01" />
+
+            <button type="submit">Search Library</button>
         </form>
         <div id="output" class="output"></div>
     </div>
 
     <script>
-        const form = document.getElementById('pdfForm');
+        const form = document.getElementById('searchForm');
         const output = document.getElementById('output');
 
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             output.textContent = "Loading...";
-            const filename = document.getElementById('filename').value;
-            const max_chars = document.getElementById('max_chars').value;
+            const authors = document.getElementById('authors').value;
+            const titles = document.getElementById('titles').value;
+            const dates = document.getElementById('dates').value;
 
-            // Call your FastAPI endpoint
-            fetch(`http://localhost:8000/pdfsample?filename=${encodeURIComponent(filename)}&max_chars=${max_chars}`)
+            // Build query string
+            const params = new URLSearchParams({
+                authors: authors,
+                titles: titles,
+                dates: dates,
+            }).toString();
+            
+            fetch(`http://localhost:8000/search_items?${params}`)
                 .then(resp => resp.json())
                 .then(data => {
-                    if (data.sample) {
-                        output.textContent = data.sample;
+                    if (data.results) {
+                        output.textContent = data.results
+                            .map(r => `ItemID: ${r[0]}\nKey: ${r[1]}\nTitle: ${r[2]}\nDate: ${r[3]}\n`)
+                            .join("\n-------------------\n");
                     } else if (data.error) {
                         output.textContent = "Error:\n" + data.error;
                     } else {

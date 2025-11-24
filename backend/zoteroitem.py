@@ -1,4 +1,5 @@
 import fitz
+from backend.external_api_utils import fetch_google_book_reviews, fetch_semantic_scholar_data
 
 class ZoteroItem:
     def __init__(self, filepath, metadata=None):
@@ -44,3 +45,6 @@ class ZoteroItem:
     # Optional for MVP: Simple representation
     def __repr__(self):
         return f"<ZoteroItem: {self.get_title()} by {self.get_author()}>"
+    
+    def get_gbook_reviews(isbn, google_api_key):
+        return fetch_google_book_reviews(isbn, google_api_key)

@@ -1,0 +1,133 @@
+import sqlite3
+import os
+from backend.zoteroitem import ZoteroItem
+
+class ZoteroLibrary:
+    def __init__(self, db_path):
+        self.conn = sqlite3.connect(f'file:{db_path}?mode=ro', uri=True)
+        self.cur = self.conn.cursor()
+
+    def search_parent_items(self, 
+                            authors=None, 
+                            titles=None, 
+                            dates=None, 
+                            tags=None, 
+                            collections=None):
+        filters = []
+        params = []
+
+        # Author filter
+        if authors:
+            filters.append("(" + " OR ".join(["cr.lastName LIKE ?"] * len(authors)) + ")")
+            params += [f"%{author}%" for author in authors]
+        # Title filter
+        if titles:
+            filters.append("(" + " OR ".join(["v_title.value LIKE ?"] * len(titles)) + ")")
+            params += [f"%{title}%" for title in titles]
+        # Date filter (was "year")
+        if dates:
+            filters.append("(" + " OR ".join(["v_date.value LIKE ?"] * len(dates)) + ")")
+            params += [f"%{date}%" for date in dates]  # Supports YYYY or partial matches
+        # Tag filter
+        if tags:
+            filters.append("(" + " OR ".join(["t.name LIKE ?"] * len(tags)) + ")")
+            params += [f"%{tag}%" for tag in tags]
+        # Collection filter
+        if collections:
+            filters.append("(" + " OR ".join(["c.collectionName LIKE ?"] * len(collections)) + ")")
+            params += [f"%{coll}%" for coll in collections]
+
+        where_clause = " AND ".join(filters) if filters else "1"
+        query = f"""
+        SELECT 
+            i.itemID,
+            i.key,
+            v_title.value AS title,
+            v_date.value AS date
+        FROM items i
+        JOIN itemCreators ic ON i.itemID = ic.itemID
+        JOIN creators cr ON ic.creatorID = cr.creatorID
+        JOIN itemData d_title ON i.itemID = d_title.itemID AND d_title.fieldID = (SELECT fieldID FROM fields WHERE fieldName = 'title')
+        JOIN itemDataValues v_title ON d_title.valueID = v_title.valueID
+        LEFT JOIN itemData d_date ON i.itemID = d_date.itemID AND d_date.fieldID = (SELECT fieldID FROM fields WHERE fieldName = 'date')
+        LEFT JOIN itemDataValues v_date ON d_date.valueID = v_date.valueID
+        LEFT JOIN itemTags it ON i.itemID = it.itemID
+        LEFT JOIN tags t ON it.tagID = t.tagID
+        LEFT JOIN collectionItems ci ON i.itemID = ci.itemID
+        LEFT JOIN collections c ON ci.collectionID = c.collectionID
+        WHERE {where_clause}
+        """
+        self.cur.execute(query, tuple(params))
+        return self.cur.fetchall()
+    
+
+    def search_parent_items_with_pdfs(self, 
+                                      authors=None, 
+                                      titles=None, 
+                                      dates=None, 
+                                      tags=None, 
+                                      collections=None):
+        filters = []
+        params = []
+
+
+        where_clause = " AND ".join(filters) if filters else "1"
+        query = f"""
+        SELECT 
+            i.itemID,
+            i.key,
+            v_title.value AS title,
+            v_date.value AS date,
+            GROUP_CONCAT(DISTINCT cr.lastName, ', ') AS authors,
+            GROUP_CONCAT(DISTINCT t.name, ', ') AS tags,
+            GROUP_CONCAT(DISTINCT c.collectionName, ', ') AS collections,
+            att.key AS attachment_key,
+            att_path.path AS attachment_path
+        FROM items i
+        JOIN itemCreators ic ON i.itemID = ic.itemID
+        JOIN creators cr ON ic.creatorID = cr.creatorID
+        JOIN itemData d_title ON i.itemID = d_title.itemID AND d_title.fieldID = (SELECT fieldID FROM fields WHERE fieldName = 'title')
+        JOIN itemDataValues v_title ON d_title.valueID = v_title.valueID
+        LEFT JOIN itemData d_date ON i.itemID = d_date.itemID AND d_date.fieldID = (SELECT fieldID FROM fields WHERE fieldName = 'date')
+        LEFT JOIN itemDataValues v_date ON d_date.valueID = v_date.valueID
+        LEFT JOIN itemTags it ON i.itemID = it.itemID
+        LEFT JOIN tags t ON it.tagID = t.tagID
+        LEFT JOIN collectionItems ci ON i.itemID = ci.itemID
+        LEFT JOIN collections c ON ci.collectionID = c.collectionID
+
+        LEFT JOIN itemAttachments ia ON i.itemID = ia.parentItemID
+        LEFT JOIN items att ON ia.itemID = att.itemID
+        LEFT JOIN itemData att_data ON att.itemID = att_data.itemID AND att_data.fieldID = (SELECT fieldID FROM fields WHERE fieldName = 'mimeType')
+        LEFT JOIN itemDataValues att_mime ON att_data.valueID = att_mime.valueID
+        LEFT JOIN itemAttachments att_path ON att.itemID = att_path.itemID
+
+        WHERE {where_clause}
+        AND (att_mime.value = 'application/pdf' OR att_path.path LIKE '%.pdf')
+        GROUP BY i.itemID
+        """
+
+        self.cur.execute(query, tuple(params))
+        results = self.cur.fetchall()
+        storage_dir = '/Users/yourusername/Zotero/storage/'
+        zotero_items = []
+
+        for item in results:
+            # Unpack results: see SELECT statement for indices
+            pdf_full_path = None
+            if item[7] and item[8]:
+                pdf_full_path = os.path.join(storage_dir, item[7], item[8])
+
+            metadata = {
+                'item_id': item[0],
+                'key': item[1],
+                'title': item[2],
+                'date': item[3],
+                'authors': item[4],       
+                'tags': item[5],           
+                'collections': item[6],    
+                'attachment_key': item[7],
+                'attachment_path': item[8],
+                'pdf_path': pdf_full_path
+            }
+            zotero_items.append(ZoteroItem(filepath=pdf_full_path, metadata=metadata))
+        return zotero_items
