@@ -1,3 +1,5 @@
+#external_api_utils.py
+
 import requests
 from semanticscholar import SemanticScholar
 import os
@@ -7,7 +9,7 @@ from dotenv import load_dotenv, dotenv_values
 google_api_key = os.getenv("GOOGLE_API")
 
 def fetch_google_book_reviews(isbn, google_api_key):
-    url = f"https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn}&key={api_key}"
+    url = f"https://www.googleapis.com/books/v1/volumes?q=isbn:{isbn}&key={google_api_key}"
     resp = requests.get(url)
     data = resp.json()
     reviews = []

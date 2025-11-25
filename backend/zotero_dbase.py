@@ -1,10 +1,13 @@
+#zotero_dbase.py
 import sqlite3
 import os
 from backend.zoteroitem import ZoteroItem
 
+username = 'aahepburn'
+
 class ZoteroLibrary:
     def __init__(self, db_path):
-        self.conn = sqlite3.connect(f'file:{db_path}?mode=ro', uri=True)
+        self.conn = sqlite3.connect(f'file:{db_path}?mode=ro', uri=True, check_same_thread=False)
         self.cur = self.conn.cursor()
 
     def search_parent_items(self, 
@@ -24,10 +27,10 @@ class ZoteroLibrary:
         if titles:
             filters.append("(" + " OR ".join(["v_title.value LIKE ?"] * len(titles)) + ")")
             params += [f"%{title}%" for title in titles]
-        # Date filter (was "year")
+        # Date filter
         if dates:
             filters.append("(" + " OR ".join(["v_date.value LIKE ?"] * len(dates)) + ")")
-            params += [f"%{date}%" for date in dates]  # Supports YYYY or partial matches
+            params += [f"%{date}%" for date in dates]
         # Tag filter
         if tags:
             filters.append("(" + " OR ".join(["t.name LIKE ?"] * len(tags)) + ")")
@@ -70,6 +73,8 @@ class ZoteroLibrary:
         filters = []
         params = []
 
+        # Add filters as needed (same as above for search_parent_items)
+        # You can implement the filter logic
 
         where_clause = " AND ".join(filters) if filters else "1"
         query = f"""
@@ -78,9 +83,9 @@ class ZoteroLibrary:
             i.key,
             v_title.value AS title,
             v_date.value AS date,
-            GROUP_CONCAT(DISTINCT cr.lastName, ', ') AS authors,
-            GROUP_CONCAT(DISTINCT t.name, ', ') AS tags,
-            GROUP_CONCAT(DISTINCT c.collectionName, ', ') AS collections,
+            GROUP_CONCAT(DISTINCT cr.lastName) AS authors,
+            GROUP_CONCAT(DISTINCT t.name) AS tags,
+            GROUP_CONCAT(DISTINCT c.collectionName) AS collections,
             att.key AS attachment_key,
             att_path.path AS attachment_path
         FROM items i
@@ -108,17 +113,24 @@ class ZoteroLibrary:
 
         self.cur.execute(query, tuple(params))
         results = self.cur.fetchall()
-        storage_dir = '/Users/yourusername/Zotero/storage/'
+        storage_dir = f'/Users/{username}/Zotero/storage/'
         zotero_items = []
 
         for item in results:
-            # Unpack results: see SELECT statement for indices
             pdf_full_path = None
             if item[7] and item[8]:
-                pdf_full_path = os.path.join(storage_dir, item[7], item[8])
+                # Clean the attachment_path to get only the actual filename
+                base_filename = item[8]
+                # Remove prefixes like 'storage:' if present
+                if base_filename and ':' in base_filename:
+                    base_filename = base_filename.split(':')[-1]
+                # Remove any leading directories or slashes
+                base_filename = os.path.basename(base_filename)
+                # Now build the correct full path
+                pdf_full_path = os.path.join(storage_dir, item[7], base_filename) if base_filename else None
 
             metadata = {
-                'item_id': item[0],
+                'item_id': str(item[0]),
                 'key': item[1],
                 'title': item[2],
                 'date': item[3],
@@ -131,3 +143,4 @@ class ZoteroLibrary:
             }
             zotero_items.append(ZoteroItem(filepath=pdf_full_path, metadata=metadata))
         return zotero_items
+
