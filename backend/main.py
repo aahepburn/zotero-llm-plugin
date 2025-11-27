@@ -1,6 +1,6 @@
 # backend/main.py
 # uvicorn backend.main:app --reload
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Body
 from typing import Optional
 from backend.zoteroitem import ZoteroItem
 from backend.external_api_utils import fetch_google_book_reviews, fetch_semantic_scholar_data
@@ -15,7 +15,9 @@ app = FastAPI()
 # CORS setup: matches your frontend HTML server (e.g., http://localhost:8080)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8080"],
+    # Allow the typical dev server origins (Vite default 5173 and older 8080),
+    # plus localhost variants used during development.
+    allow_origins=["http://localhost:8080", "http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -90,8 +92,19 @@ def get_reviews(query: str):
 def index_library():
     """Index all Zotero parent items and PDFs in the vector database."""
     try:
-        chatbot.index_library()  # Make sure this is thread-safe if you use concurrency!
-        return {"msg": "Indexing complete."}
+        # Start background indexing and return immediately
+        chatbot.start_indexing()
+        return {"msg": "Indexing started."}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.post("/index_cancel")
+def index_cancel():
+    """Cancel a running indexing job."""
+    try:
+        chatbot.cancel_indexing()
+        return {"msg": "Cancellation signaled."}
     except Exception as e:
         return {"error": str(e)}
 
@@ -106,5 +119,44 @@ def chat(query: str, item_ids: Optional[str] = Query("", description="Comma sepa
     except Exception as e:
         tb = traceback.format_exc()
         return {"error": str(e), "traceback": tb}
+
+
+@app.post("/chat")
+def chat_post(payload: dict = Body(...)):
+    """POST-style chat endpoint that accepts JSON body: {"query": "...", "item_ids": ["id1","id2"]}
+    This mirrors the GET `/chat` endpoint but is easier for clients that send JSON.
+    """
+    try:
+        query = payload.get("query")
+        if not query:
+            return {"error": "Missing 'query' in request body"}
+
+        item_ids = payload.get("item_ids") or []
+        # Accept either a list of ids or a comma-separated string
+        if isinstance(item_ids, str):
+            filter_ids = [id_.strip() for id_ in item_ids.split(",") if id_.strip()]
+        elif isinstance(item_ids, list):
+            filter_ids = [str(id_).strip() for id_ in item_ids if str(id_).strip()]
+        else:
+            filter_ids = []
+
+        payload_out = chatbot.chat(query, filter_item_ids=filter_ids if filter_ids else None)
+        return payload_out
+    except Exception as e:
+        tb = traceback.format_exc()
+        return {"error": str(e), "traceback": tb}
+
+
+@app.get("/index_status")
+def index_status():
+    """Return a simple status for indexing. Currently basic placeholder.
+    You can expand this to report real progress/state from the ZoteroChatbot.
+    """
+    try:
+        status = "indexing" if getattr(chatbot, "is_indexing", False) else "idle"
+        progress = getattr(chatbot, "index_progress", None) or {}
+        return {"status": status, "progress": progress}
+    except Exception as e:
+        return {"error": str(e)}
 
 

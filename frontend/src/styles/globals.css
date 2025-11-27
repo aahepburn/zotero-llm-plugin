@@ -1,0 +1,89 @@
+@import "./theme.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: radial-gradient(circle at top left, #fdfbf6, var(--bg-body));
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  /* subtle vertical stripes, early-Internet paper */
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.45),
+    rgba(255, 255, 255, 0.45)
+  ),
+    linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0.6) 0,
+      rgba(255, 255, 255, 0.6) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+  background-size: 100% 100%, 5px 100%;
+  mix-blend-mode: multiply;
+  z-index: -1;
+}
+
+a {
+  color: var(--text-accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+}
+
+/* Scrollbars */
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1ece1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c3b59f;
+  border-radius: 5px;
+}
+
+/* Utility */
+
+.app-heading {
+  font-family: var(--font-serif);
+  font-size: 1.2rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
