@@ -1,7 +1,8 @@
 venv/
 .DS_Store
-backend/vector_db/
-__pycache__/
+vector_db/
+backend/__pycache__/
 node_modules/
 .env
 backend/sample_pdfs/
+backend/.DS_Store
