@@ -167,12 +167,6 @@
       "category": "Office",
       "synopsis": "AI-powered research assistant for Zotero",
       "description": "Chat with your Zotero library using AI. Get cited answers, search semantically, and manage your research with intelligent assistance."
-    },
-    "publish": {
-      "provider": "github",
-      "owner": "aahepburn",
-      "repo": "zotero-llm-plugin",
-      "releaseType": "release"
     }
   }
 }
