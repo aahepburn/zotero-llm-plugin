@@ -46,7 +46,7 @@ If you want to modify the code or prefer not to use the packaged app:
 **Setup:**
 
 ```bash
-git clone https://github.com/aahepburn/zotero-llm-plugin.git
+git clone https://github.com/aahepburn/Zotero-RAG-Assistant.git
 cd zotero-llm-plugin
 
 # Create and activate Python virtual environment
